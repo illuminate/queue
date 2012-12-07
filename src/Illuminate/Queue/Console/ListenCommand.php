@@ -36,6 +36,8 @@ class ListenCommand extends Command {
 	 */
 	public function __construct(Listener $listener)
 	{
+		parent::__construct();
+
 		$this->listener = $listener;
 	}
 
