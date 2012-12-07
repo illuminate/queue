@@ -13,6 +13,7 @@
         "illuminate/support": ">=1.0.0"
     },
     "require-dev": {
+        "iron-io/iron_mq": "1.2.*",
         "mockery/mockery": "0.7.2"
     },
     "autoload": {
