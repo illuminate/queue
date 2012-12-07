@@ -1,6 +1,7 @@
 <?php namespace Illuminate\Queue;
 
 use Illuminate\Support\ServiceProvider;
+use Illuminate\Queue\Console\ListenCommand;
 use Illuminate\Queue\Connectors\SyncConnector;
 
 class QueueServiceProvider extends ServiceProvider {
