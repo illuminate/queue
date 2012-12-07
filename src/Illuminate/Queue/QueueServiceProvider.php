@@ -3,6 +3,7 @@
 use Illuminate\Support\ServiceProvider;
 use Illuminate\Queue\Console\ListenCommand;
 use Illuminate\Queue\Connectors\SyncConnector;
+use Illuminate\Queue\Connectors\BeanstalkdConnector;
 
 class QueueServiceProvider extends ServiceProvider {
 

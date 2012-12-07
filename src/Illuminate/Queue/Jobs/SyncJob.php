@@ -47,9 +47,9 @@ class SyncJob extends Job {
 	 */
 	public function fire()
 	{
-		$instance = $this->container->make($this->job);
+		$this->instance = $this->container->make($this->job);
 
-		$instance->fire($this, unserialize($this->data));
+		$this->instance->fire($this, unserialize($this->data));
 	}
 
 	/**

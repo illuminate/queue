@@ -56,9 +56,9 @@ class BeanstalkdJob extends Job {
 		// Once we have the message payload, we can create the given class and fire
 		// it off with the given data. The data is in the messages serialized so
 		// we will unserialize it and pass into the jobs in its original form.
-		$instance = $this->container->make($payload['job']);
+		$this->instance = $this->container->make($payload['job']);
 
-		$instance->fire($this, $payload['data']);
+		$this->instance->fire($this, $payload['data']);
 	}
 
 	/**

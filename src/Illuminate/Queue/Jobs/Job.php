@@ -3,11 +3,11 @@
 abstract class Job {
 
 	/**
-	 * Indicates if the job gets deleted after run.
+	 * The job handler instance.
 	 *
-	 * @var bool
+	 * @var mixed
 	 */
-	protected $delete = false;
+	protected $instance;
 
 	/**
 	 * Fire the job.
@@ -32,13 +32,13 @@ abstract class Job {
 	abstract public function release($delay = 0);
 
 	/**
-	 * Determine if the job should be auto-deleted.
+	 * Determine if job should be auto-deleted.
 	 *
 	 * @return bool
 	 */
 	public function autoDelete()
 	{
-		return $this->delete;
+		return isset($this->instance->delete);
 	}
 
 }
