@@ -69,10 +69,14 @@ class Worker
         $lastRestart = $this->getTimestampOfLastQueueRestart();
 
         while (true) {
-            $this->registerTimeoutHandler($options);
+            $job = $this->getNextJob(
+                $this->manager->connection($connectionName), $queue
+            );
 
-            if ($this->daemonShouldRun($options)) {
-                $this->runNextJob($connectionName, $queue, $options);
+            $this->registerTimeoutHandler($job, $options);
+
+            if ($job && $this->daemonShouldRun($options)) {
+                $this->runJob($job, $connectionName, $options);
             } else {
                 $this->sleep($options->sleep);
             }
@@ -87,14 +91,17 @@ class Worker
     /**
      * Register the worker timeout handler (PHP 7.1+).
      *
+     * @param  \Illuminate\Contracts\Queue\Job|null  $job
      * @param  WorkerOptions  $options
      * @return void
      */
-    protected function registerTimeoutHandler(WorkerOptions $options)
+    protected function registerTimeoutHandler($job, WorkerOptions $options)
     {
         if ($options->timeout == 0 || version_compare(PHP_VERSION, '7.1.0') < 0 || ! extension_loaded('pcntl')) {
             return;
         }
+
+        $timeout = $job && ! is_null($job->timeout()) ? $job->timeout() : $options->timeout;
 
         pcntl_async_signals(true);
 
@@ -106,7 +113,7 @@ class Worker
             exit(1);
         });
 
-        pcntl_alarm($options->timeout + $options->sleep);
+        pcntl_alarm($timeout + $options->sleep);
     }
 
     /**
@@ -118,7 +125,7 @@ class Worker
     protected function daemonShouldRun(WorkerOptions $options)
     {
         if (($this->manager->isDownForMaintenance() && ! $options->force) ||
-            $this->events->until('illuminate.queue.looping') === false) {
+            $this->events->until(new Events\Looping) === false) {
             // If the application is down for maintenance or doesn't want the queues to run
             // we will sleep for one second just in case the developer has it set to not
             // sleep at all. This just prevents CPU from maxing out in this situation.
@@ -140,26 +147,41 @@ class Worker
      */
     public function runNextJob($connectionName, $queue, WorkerOptions $options)
     {
-        try {
-            $job = $this->getNextJob(
-                $this->manager->connection($connectionName), $queue
-            );
+        $job = $this->getNextJob(
+            $this->manager->connection($connectionName), $queue
+        );
 
-            // If we're able to pull a job off of the stack, we will process it and then return
-            // from this method. If there is no job on the queue, we will "sleep" the worker
-            // for the specified number of seconds, then keep processing jobs after sleep.
-            if ($job) {
-                return $this->process(
-                    $connectionName, $job, $options
-                );
-            }
+        // If we're able to pull a job off of the stack, we will process it and then return
+        // from this method. If there is no job on the queue, we will "sleep" the worker
+        // for the specified number of seconds, then keep processing jobs after sleep.
+        if ($job) {
+            $job->setConnectionName($connectionName);
+
+            return $this->runJob($job, $connectionName, $options);
+        }
+
+        $this->sleep($options->sleep);
+    }
+
+    /**
+     * Process the given job.
+     *
+     * @param  \Illuminate\Contracts\Queue\Job  $job
+     * @param  string  $connectionName
+     * @param  \Illuminate\Queue\WorkerOptions  $options
+     * @return void
+     */
+    protected function runJob($job, $connectionName, WorkerOptions $options)
+    {
+        try {
+            return $this->process(
+                $connectionName, $job, $options
+            );
         } catch (Exception $e) {
             $this->exceptions->report($e);
         } catch (Throwable $e) {
             $this->exceptions->report(new FatalThrowableError($e));
         }
-
-        $this->sleep($options->sleep);
     }
 
     /**
@@ -171,10 +193,16 @@ class Worker
      */
     protected function getNextJob($connection, $queue)
     {
-        foreach (explode(',', $queue) as $queue) {
-            if (! is_null($job = $connection->pop($queue))) {
-                return $job;
+        try {
+            foreach (explode(',', $queue) as $queue) {
+                if (! is_null($job = $connection->pop($queue))) {
+                    return $job;
+                }
             }
+        } catch (Exception $e) {
+            $this->exceptions->report($e);
+        } catch (Throwable $e) {
+            $this->exceptions->report(new FatalThrowableError($e));
         }
     }
 
@@ -257,6 +285,8 @@ class Worker
      */
     protected function markJobAsFailedIfAlreadyExceedsMaxAttempts($connectionName, $job, $maxTries)
     {
+        $maxTries = ! is_null($job->maxTries()) ? $job->maxTries() : $maxTries;
+
         if ($maxTries === 0 || $job->attempts() <= $maxTries) {
             return;
         }
@@ -282,6 +312,8 @@ class Worker
     protected function markJobAsFailedIfHasExceededMaxAttempts(
         $connectionName, $job, $maxTries, $e
     ) {
+        $maxTries = ! is_null($job->maxTries()) ? $job->maxTries() : $maxTries;
+
         if ($maxTries === 0 || $job->attempts() < $maxTries) {
             return;
         }
@@ -299,20 +331,7 @@ class Worker
      */
     protected function failJob($connectionName, $job, $e)
     {
-        if ($job->isDeleted()) {
-            return;
-        }
-
-        try {
-            // If the job has failed, we will delete it, call the "failed" method and then call
-            // an event indicating the job has failed so it can be logged if needed. This is
-            // to allow every developer to better keep monitor of their failed queue jobs.
-            $job->delete();
-
-            $job->failed($e);
-        } finally {
-            $this->raiseFailedJobEvent($connectionName, $job, $e);
-        }
+        return FailingJob::handle($connectionName, $job, $e);
     }
 
     /**

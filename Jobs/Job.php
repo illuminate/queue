@@ -23,6 +23,11 @@ abstract class Job
     protected $container;
 
     /**
+     * The name of the connection the job belongs to.
+     */
+    protected $connectionName;
+
+    /**
      * The name of the queue the job belongs to.
      *
      * @var string
@@ -136,7 +141,7 @@ abstract class Job
     }
 
     /**
-     * Call the failed method on the job instance.
+     * Process an exception that caused the job to fail.
      *
      * @param  \Exception  $e
      * @return void
@@ -205,6 +210,8 @@ abstract class Job
     /**
      * Get the resolved name of the queued job class.
      *
+     * Resolves the name of "wrapped" jobs such as class-based handlers.
+     *
      * @return string
      */
     public function resolveName()
@@ -232,6 +239,47 @@ abstract class Job
     public function payload()
     {
         return json_decode($this->getRawBody(), true);
+    }
+
+    /**
+     * The number of times to attempt a job.
+     *
+     * @return int|null
+     */
+    public function maxTries()
+    {
+        return array_get($this->payload(), 'maxTries');
+    }
+
+    /**
+     * The number of seconds the job can run.
+     *
+     * @return int|null
+     */
+    public function timeout()
+    {
+        return array_get($this->payload(), 'timeout');
+    }
+
+    /**
+     * Get the name of the connection the job belongs to.
+     *
+     * @return string
+     */
+    public function getConnectionName()
+    {
+        return $this->connectionName;
+    }
+
+    /**
+     * Set the name of the connection the job belongs to.
+     *
+     * @param  string  $name
+     * @return void
+     */
+    public function setConnectionName($name)
+    {
+        $this->connectionName = $name;
     }
 
     /**

@@ -4,16 +4,16 @@ namespace Illuminate\Queue;
 
 use Illuminate\Support\Arr;
 use Illuminate\Support\Str;
-use Illuminate\Redis\Database;
 use Illuminate\Queue\Jobs\RedisJob;
+use Illuminate\Contracts\Redis\Factory as Redis;
 use Illuminate\Contracts\Queue\Queue as QueueContract;
 
 class RedisQueue extends Queue implements QueueContract
 {
     /**
-     * The Redis database instance.
+     * The Redis factory implementation.
      *
-     * @var \Illuminate\Redis\Database
+     * @var \Illuminate\Contracts\Redis\Factory
      */
     protected $redis;
 
@@ -41,14 +41,13 @@ class RedisQueue extends Queue implements QueueContract
     /**
      * Create a new Redis queue instance.
      *
-     * @param  \Illuminate\Redis\Database  $redis
+     * @param  \Illuminate\Contracts\Redis\Factory  $redis
      * @param  string  $default
      * @param  string  $connection
      * @param  int  $expire
      * @return void
      */
-    public function __construct(Database $redis, $default = 'default',
-                                $connection = null, $expire = 60)
+    public function __construct(Redis $redis, $default = 'default', $connection = null, $expire = 60)
     {
         $this->redis = $redis;
         $this->expire = $expire;
@@ -239,7 +238,7 @@ class RedisQueue extends Queue implements QueueContract
     /**
      * Get the underlying Redis instance.
      *
-     * @return \Illuminate\Redis\Database
+     * @return \Illuminate\Contracts\Redis\Database
      */
     public function getRedis()
     {
