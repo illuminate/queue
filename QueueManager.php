@@ -22,6 +22,13 @@ class QueueManager implements FactoryContract, MonitorContract
      * @var array
      */
     protected $connections = [];
+    
+    /**
+     * The array of resolved queue connectors.
+     *
+     * @var array
+     */
+    protected $connectors = [];
 
     /**
      * The array of resolved queue connectors.
