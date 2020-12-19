@@ -539,9 +539,9 @@ class Worker
      * @param  \Throwable  $e
      * @return void
      */
-    protected function failJob($job, Throwable $e)
+    protected function failJob(Job$job, Throwable $e)
     {
-        return $job->fail($e);
+        $job->fail($e);
     }
 
     /**
