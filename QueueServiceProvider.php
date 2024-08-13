@@ -197,8 +197,10 @@ class QueueServiceProvider extends ServiceProvider implements DeferrableProvider
                 return $this->app->isDownForMaintenance();
             };
 
-            $resetScope = function () use ($app) {
-                $app['log']->flushSharedContext();
+            $resetScope = function () use ($app) {                
+                if (method_exists($app['log'], 'flushSharedContext')) {
+                    $app['log']->flushSharedContext();
+                }
 
                 if (method_exists($app['log'], 'withoutContext')) {
                     $app['log']->withoutContext();
